@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MNIST Digit Recognition on GitHub Pages</title>
+    <!-- Load TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            background-color: #f8f9fa;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+
+        p {
+            color: #7f8c8d;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        #canvas {
+            border: 4px solid #2c3e50;
+            border-radius: 8px;
+            cursor: crosshair;
+            background: #000000;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+            touch-action: none;
+        }
+
+        .controls {
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 0 5px;
+            transition: background 0.2s;
+        }
+
+        .btn-clear {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background-color: #c0392b;
+        }
+
+        .btn-predict {
+            background-color: #2ecc71;
+            color: white;
+        }
+
+        .btn-predict:hover {
+            background-color: #27ae60;
+        }
+
+        .status {
+            font-weight: bold;
+            color: #f39c12;
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background: #f8f9fa;
+        }
+
+        #prediction-output {
+            font-size: 64px;
+            font-weight: 800;
+            color: #3498db;
+            margin-top: 10px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .error-details {
+            font-size: 12px;
+            color: #e74c3c;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Digit Recognizer</h1>
+        <p>Draw a single digit (0-9) inside the box</p>
+
+        <canvas id="canvas" width="280" height="280"></canvas>
+
+        <div class="controls">
+            <button class="btn-clear" onclick="clearCanvas()">Clear</button>
+            <button class="btn-predict" onclick="predict()">Predict</button>
+        </div>
+
+        <div id="status" class="status">
+            <span class="loading-spinner"></span>
+            Loading Pre-trained MNIST Model...
+        </div>
+        <div>Prediction:</div>
+        <div id="prediction-output">-</div>
+    </div>
+
+    <script>
+        let model;
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const statusDiv = document.getElementById('status');
+        const predictionDiv = document.getElementById('prediction-output');
+
+        let drawing = false;
+
+        // Mouse Events
+        canvas.addEventListener('mousedown', (e) => {
+            drawing = true;
+            ctx.beginPath();
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            ctx.moveTo(x, y);
+        });
+        canvas.addEventListener('mouseup', () => { drawing = false; });
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseleave', () => { drawing = false; });
+
+        // Touch Events (mobile)
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            drawing = true;
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            drawing = false;
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!drawing) return;
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            draw({ offsetX: x, offsetY: y });
+        }, { passive: false });
+
+        function draw(e) {
+            if (!drawing) return;
+            const x = e.offsetX ?? 0;
+            const y = e.offsetY ?? 0;
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 20;
+            ctx.lineCap = "round";
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        function clearCanvas() {
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = "white";
+            predictionDiv.innerText = '-';
+            ctx.beginPath();
+        }
+        clearCanvas();
+
+        // ----- MODEL LOADING WITH RETRY AND BETTER ERROR HANDLING -----
+        async function loadModel() {
+            try {
+                statusDiv.innerHTML = '<span class="loading-spinner"></span> Loading model...';
+                statusDiv.style.color = "#f39c12";
+
+                // Get the current URL to help with debugging
+                const currentUrl = window.location.href;
+                console.log('Current page URL:', currentUrl);
+
+                // Try multiple approaches to load the model
+                let modelUrl = 'model.json';
+
+                // If we're on GitHub Pages, try to construct the correct path
+                if (currentUrl.includes('github.io')) {
+                    // Get the base path without the filename
+                    const basePath = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1);
+                    modelUrl = basePath + 'model.json';
+                    console.log('Using GitHub Pages path:', modelUrl);
+                }
+
+                console.log('Attempting to load model from:', modelUrl);
+
+                // Load the model with explicit fetch options
+                model = await tf.loadLayersModel(modelUrl);
+
+                console.log('Model loaded successfully!');
+                model.summary();
+
+                // Test the model with a dummy input to ensure it works
+                const testInput = tf.zeros([1, 784]);
+                const testOutput = model.predict(testInput);
+                testOutput.dispose();
+                testInput.dispose();
+
+                statusDiv.innerHTML = '✅ Model Loaded Successfully! Ready to predict.';
+                statusDiv.style.color = "#2ecc71";
+            } catch (error) {
+                console.error("Model load error:", error);
+
+                // Provide more helpful error message
+                let errorMessage = '❌ Failed to load model. ';
+                if (error.message.includes('Failed to fetch')) {
+                    errorMessage += 'Make sure model.json and group1-shard1of1 are in the same folder as this HTML file. ';
+                    errorMessage += 'If using GitHub Pages, ensure files are in the correct branch and path.';
+                } else {
+                    errorMessage += 'Error: ' + error.message;
+                }
+
+                statusDiv.innerHTML = errorMessage;
+                statusDiv.style.color = "#e74c3c";
+
+                // Add a retry button
+                const retryBtn = document.createElement('button');
+                retryBtn.textContent = 'Retry Loading Model';
+                retryBtn.onclick = loadModel;
+                retryBtn.style.marginTop = '10px';
+                retryBtn.style.padding = '5px 15px';
+                retryBtn.style.background = '#3498db';
+                retryBtn.style.color = 'white';
+                retryBtn.style.border = 'none';
+                retryBtn.style.borderRadius = '4px';
+                retryBtn.style.cursor = 'pointer';
+                statusDiv.appendChild(document.createElement('br'));
+                statusDiv.appendChild(retryBtn);
+            }
+        }
+
+        // Start loading the model
+        loadModel();
+
+        function preprocessCanvas() {
+            // Get the image data from canvas
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            // Convert to grayscale and resize to 28x28 manually
+            const gray = new Float32Array(28 * 28);
+            const blockSize = canvas.width / 28;
+
+            for (let i = 0; i < 28; i++) {
+                for (let j = 0; j < 28; j++) {
+                    let sum = 0;
+                    let count = 0;
+                    // Average over the block
+                    for (let dy = 0; dy < blockSize; dy++) {
+                        for (let dx = 0; dx < blockSize; dx++) {
+                            const x = Math.floor(j * blockSize + dx);
+                            const y = Math.floor(i * blockSize + dy);
+                            if (x < canvas.width && y < canvas.height) {
+                                const idx = (y * canvas.width + x) * 4;
+                                // Get red channel (grayscale)
+                                sum += imageData.data[idx];
+                                count++;
+                            }
+                        }
+                    }
+                    // Normalize to [0, 1]
+                    gray[i * 28 + j] = (sum / count) / 255.0;
+                }
+            }
+
+            return gray;
+        }
+
+        function predict() {
+            if (!model) {
+                alert("Model is not loaded yet. Please wait or click 'Retry Loading Model'.");
+                return;
+            }
+
+            try {
+                // Get preprocessed image data
+                const imageData = preprocessCanvas();
+
+                // Create tensor from the array
+                const inputTensor = tf.tensor2d(imageData, [1, 784]);
+
+                // Make prediction
+                const prediction = model.predict(inputTensor);
+                const result = prediction.argMax(1).dataSync()[0];
+
+                // Display result
+                predictionDiv.innerText = result;
+
+                // Clean up
+                inputTensor.dispose();
+                prediction.dispose();
+
+            } catch (error) {
+                console.error("Prediction error:", error);
+                alert("Error during prediction: " + error.message);
+            }
+        }
+    </script>
+</body>
+
+</html>
