@@ -901,12 +901,21 @@ footer span:last-child{color:#0a0a0a}
 /* responsive */
 @media(max-width:768px){
   body{cursor:auto;overflow-y:auto}
-  .venom-cursor{width:180px;height:180px;opacity:0.85;mix-blend-mode:normal}
-  .venom-cursor .blob{
-    background:radial-gradient(circle at 35% 30%,#2e2e2e 0%,#0a0a0a 55%,#000 100%);
-    filter:blur(16px);
-    opacity:0.92;
+  .venom-cursor{
+    width:150px;
+    height:150px;
+    opacity:0.96;
+    mix-blend-mode:normal;
+    filter:drop-shadow(0 0 22px rgba(0,0,0,0.55));
   }
+  .venom-cursor .blob{
+    background:radial-gradient(circle at 30% 24%,#3a3a3a 0%,#0d0d0d 42%,#000 78%);
+    filter:blur(5px);
+    opacity:1;
+  }
+  .venom-cursor .blob:nth-child(1){animation-duration:3.2s}
+  .venom-cursor .blob:nth-child(2){animation-duration:3.8s}
+  .venom-cursor .blob:nth-child(3){animation-duration:2.6s}
   .smooth-wrapper{transform:none!important}
   .side-nav{
     display:flex;
