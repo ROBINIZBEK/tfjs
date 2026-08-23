@@ -93,46 +93,43 @@ if(!isTouch){
   venomCursor.style.width = '180px';
   venomCursor.style.height = '180px';
 
-  let targetX = window.innerWidth / 2;
-  let targetY = window.innerHeight / 2;
-  let idleTime = 0;
-  let isTouching = false;
+  // true venom: it doesn't chase your finger — it lurks at the screen
+  // edges and peeks in from the left or right, occasionally slinking
+  // across, the way a symbiote would rather than a touch-tracking dot.
+  // .venom-cursor is position:fixed, so it stays glued to the viewport
+  // and rides along as the page scrolls.
+  let targetX = window.innerWidth * 0.5;
+  let targetY = window.innerHeight * 0.4;
 
-  document.addEventListener('touchstart', (e) => {
-    targetX = e.touches[0].clientX;
-    targetY = e.touches[0].clientY;
-    isTouching = true;
-    idleTime = 0;
-  }, { passive: true });
+  function pickNewWanderTarget(){
+    const roll = Math.random();
+    const peekDepth = window.innerWidth * (0.08 + Math.random() * 0.1);
+    const marginY = window.innerHeight * 0.12;
+    const y = marginY + Math.random() * (window.innerHeight - marginY * 2);
 
-  document.addEventListener('touchmove', (e) => {
-    targetX = e.touches[0].clientX;
-    targetY = e.touches[0].clientY;
-    isTouching = true;
-    idleTime = 0;
-  }, { passive: true });
-
-  document.addEventListener('touchend', () => {
-    isTouching = false;
-  }, { passive: true });
+    if(roll < 0.42){
+      // peek in from the left edge (partly off-screen)
+      targetX = -50 + peekDepth;
+      targetY = y;
+    } else if(roll < 0.84){
+      // peek in from the right edge (partly off-screen)
+      targetX = window.innerWidth + 50 - peekDepth;
+      targetY = y;
+    } else {
+      // rare slink across the middle of the screen
+      targetX = window.innerWidth * 0.25 + Math.random() * window.innerWidth * 0.5;
+      targetY = y;
+    }
+  }
+  pickNewWanderTarget();
+  setInterval(pickNewWanderTarget, 2800 + Math.random() * 2400);
 
   function animateMobileVenom(){
-    if (!isTouching) {
-      idleTime++;
-      if (idleTime > 60) {
-        const t = Date.now() * 0.0003;
-        const edge = Math.sin(t * 0.5) > 0 ? 'left' : 'right';
-        if (edge === 'left') {
-          targetX = 40 + Math.sin(t) * 30;
-          targetY = window.innerHeight * 0.3 + Math.cos(t * 0.7) * (window.innerHeight * 0.4);
-        } else {
-          targetX = window.innerWidth - 40 + Math.sin(t) * 30;
-          targetY = window.innerHeight * 0.3 + Math.cos(t * 0.7) * (window.innerHeight * 0.4);
-        }
-      }
-    }
-    cursorX += (targetX - cursorX) * 0.06;
-    cursorY += (targetY - cursorY) * 0.06;
+    const t = Date.now() * 0.0006;
+    const driftX = Math.sin(t) * 14;
+    const driftY = Math.cos(t * 0.8) * 20;
+    cursorX += (targetX + driftX - cursorX) * 0.02;
+    cursorY += (targetY + driftY - cursorY) * 0.02;
     venomCursor.style.left = cursorX + 'px';
     venomCursor.style.top = cursorY + 'px';
     requestAnimationFrame(animateMobileVenom);
@@ -235,7 +232,7 @@ const orbitalNodes = [
 
 function createOrbital(){
   const cx = 300, cy = 300;
-  const radius = isTouch ? 130 : 240;
+  const radius = isTouch ? 190 : 240;
   const count = orbitalNodes.length;
 
   orbitalNodes.forEach((name, i) => {
@@ -255,8 +252,11 @@ function createOrbital(){
     const node = document.createElement('div');
     node.className = 'orbital-node';
     node.textContent = name;
-    node.style.left = nx + 'px';
-    node.style.top = ny + 'px';
+    // position as a % of the 600x600 viewBox space (matches how the SVG
+    // itself scales) instead of raw px, so nodes stay aligned with the
+    // lines and inside the container no matter how small it renders
+    node.style.left = (nx / 600 * 100) + '%';
+    node.style.top = (ny / 600 * 100) + '%';
     node.style.transform = 'translate(-50%, -50%)';
 
     node.addEventListener('mouseenter', () => {
