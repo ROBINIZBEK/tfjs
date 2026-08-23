@@ -901,9 +901,30 @@ footer span:last-child{color:#0a0a0a}
 /* responsive */
 @media(max-width:768px){
   body{cursor:auto;overflow-y:auto}
-  .venom-cursor{width:180px;height:180px;opacity:0.7}
+  .venom-cursor{width:180px;height:180px;opacity:0.85;mix-blend-mode:normal}
+  .venom-cursor .blob{
+    background:radial-gradient(circle at 35% 30%,#2e2e2e 0%,#0a0a0a 55%,#000 100%);
+    filter:blur(16px);
+    opacity:0.92;
+  }
   .smooth-wrapper{transform:none!important}
-  .side-nav{display:none}
+  .side-nav{
+    display:flex;
+    right:12px;
+    gap:12px;
+  }
+  .nav-dot{
+    width:6px;
+    height:6px;
+    position:relative;
+  }
+  .nav-dot::before{
+    content:'';
+    position:absolute;
+    inset:-13px;
+  }
+  .nav-dot::after{display:none}
+  .nav-dot.active{transform:scale(1.4)}
   section{padding:80px 24px;min-height:auto}
   .hero-headline{font-size:clamp(36px,14vw,72px);letter-spacing:-2px}
   .builder-timeline{max-width:100%}
@@ -922,4 +943,9 @@ footer span:last-child{color:#0a0a0a}
   .chowk-score{font-size:10px}
   .chowk-intersection{padding:12px 16px}
   .chowk-intersection-label{font-size:11px}
+  .contact-headline{letter-spacing:-0.01em}
+  .contact-headline .outline{
+    -webkit-text-stroke-width:1px;
+    letter-spacing:0.015em;
+  }
 }
