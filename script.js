@@ -90,8 +90,8 @@ if(!isTouch){
   animateVenom();
 } else {
   venomCursor.style.display = 'block';
-  venomCursor.style.width = '180px';
-  venomCursor.style.height = '180px';
+  venomCursor.style.width = '150px';
+  venomCursor.style.height = '150px';
 
   // true venom: it doesn't chase your finger — it lurks at the screen
   // edges and peeks in from the left or right, occasionally slinking
